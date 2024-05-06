@@ -45,8 +45,7 @@ module.exports = function (RED) {
 						smq.bypassTimer = setTimeout(bypassSend, smq.bypassInterval);
 					}
 
-					// Update status
-					node.status({ fill: "green", shape: "ring", text: context.queue.length });
+					updateStatus(smq, node);
 				} else {
 					smq.bypassTimer = null;
 					smq.isBusy = false;
@@ -58,6 +57,30 @@ module.exports = function (RED) {
 	function stopBypassTimer(smq) {
 		clearTimeout(smq.bypassTimer);
 		smq.bypassTimer = null;
+	}
+
+	function updateStatus(smq, node) {
+		const context = node.context();
+		const queueL = context.queue.length.toString();
+		if (context.isDisabled) {
+			node.status({
+				fill: "orange",
+				shape: "ring",
+				text: queueL + " (bypass all)"
+			});
+		} else if (smq.firstMessageBypass && !smq.isBusy) {
+			node.status({
+				fill: "blue",
+				shape: "ring",
+				text: queueL + " (bypass first)"
+			});
+		} else {
+			node.status({
+				fill: "green",
+				shape: "ring",
+				text: queueL
+			});
+		}
 	}
 
 	function SimpleMessageQueueNode(config) {
@@ -137,13 +160,11 @@ module.exports = function (RED) {
 			}
 
 			bypassQueue(smq, context, node);
-			// Update status
-			node.status({ fill: "green", shape: "ring", text: context.queue.length });
+			updateStatus(smq, node);
 		});
 
 		this.on("close", function () {
-			// Update status
-			node.status({ fill: "green", shape: "ring", text: 0 });
+			updateStatus(smq, node);
 		});
 	}
 
